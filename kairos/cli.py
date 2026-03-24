@@ -105,6 +105,25 @@ def _cmd_embed(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_serve(args: argparse.Namespace) -> int:
+    """Run the MCP server sub-command."""
+    from kairos.server import main as serve_main
+
+    contracts_dir = Path(args.contracts_dir).resolve()
+    db_path = Path(args.db).resolve()
+
+    if not contracts_dir.is_dir():
+        print(f"Error: contracts directory not found: {contracts_dir}", file=sys.stderr)
+        return 1
+
+    if not db_path.exists():
+        print(f"Error: database not found: {db_path}", file=sys.stderr)
+        return 1
+
+    serve_main(str(contracts_dir), str(db_path))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the ``kairos`` CLI."""
     parser = argparse.ArgumentParser(
@@ -163,6 +182,23 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to the sqlite-vec database file",
     )
     sp_embed.set_defaults(func=_cmd_embed)
+
+    # -- serve --
+    sp_serve = subparsers.add_parser(
+        "serve",
+        help="Run the Kairos MCP server (stdio transport)",
+    )
+    sp_serve.add_argument(
+        "--contracts-dir",
+        required=True,
+        help="Path to the directory containing contract YAML files",
+    )
+    sp_serve.add_argument(
+        "--db",
+        required=True,
+        help="Path to the sqlite-vec database file",
+    )
+    sp_serve.set_defaults(func=_cmd_serve)
 
     args = parser.parse_args(argv)
 
