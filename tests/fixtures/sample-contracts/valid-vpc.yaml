@@ -1,0 +1,50 @@
+contract_version: "0.1.0"
+
+identity:
+  name: vpc
+  full_name: blueshift-vpc
+  category: infrastructure
+  purpose: >
+    Provisions shared VPC networking infrastructure for the entire Blueshift
+    platform. Creates a VPC with public and private subnets across 2 AZs,
+    Internet Gateway, NAT Gateway, and an ingress Elastic IP for Traefik.
+  archetype: cdk-infra
+
+provides:
+  cloudformation_exports:
+    - name: "blueshift-vpc-{env}-VpcId"
+      description: "VPC ID for the shared Blueshift VPC"
+    - name: "blueshift-vpc-{env}-VpcCidr"
+      description: "VPC CIDR block (10.0.0.0/16)"
+    - name: "blueshift-vpc-{env}-PublicSubnetIds"
+      description: "Comma-separated public subnet IDs across 2 AZs"
+  docker_images: []
+  docker_networks: []
+  packages: []
+  secrets: []
+  ci_templates: []
+
+consumes:
+  cloudformation_imports: []
+  docker_images: []
+  secrets: []
+  repos: []
+
+interfaces:
+  api_endpoints: []
+
+operational:
+  tech_stack:
+    language: python
+    framework: aws-cdk
+    iac: cdk
+  validation_command: "./scripts/ci/validate.sh"
+  test_command: "cd infrastructure && uv run cdk synth"
+
+gotchas:
+  - severity: critical
+    summary: "Cannot delete VPC stack while consuming stacks reference its exports"
+    detail: >
+      CloudFormation prevents stack deletion if any export is still imported
+      by another stack. Teardown order must be application stacks first,
+      then compute, then VPC.
