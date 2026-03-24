@@ -1,0 +1,47 @@
+contract_version: "0.1.0"
+
+identity:
+  name: repo-c
+  full_name: org-repo-c
+  category: apps
+  purpose: "Application stack deployed onto the compute platform."
+  archetype: compose-standalone
+
+provides:
+  cloudformation_exports: []
+  docker_images: []
+  docker_networks: []
+  packages: []
+  secrets: []
+  ci_templates: []
+
+consumes:
+  cloudformation_imports:
+    - export: "repo-b-InstanceId"
+      from: repo-b
+      description: "Instance to deploy application onto"
+  docker_images: []
+  secrets:
+    - path: "secret/app/db-password"
+      from: repo-b
+      description: "Database password seeded by compute bootstrap"
+  repos: []
+
+interfaces:
+  api_endpoints: []
+
+operational:
+  tech_stack:
+    language: shell
+    framework: docker-compose
+    iac: swarm
+  validation_command: "./scripts/ci/validate.sh"
+  test_command: "./scripts/ci/validate.sh"
+
+gotchas:
+  - severity: medium
+    summary: "Requires compute stack to be deployed first"
+    detail: "Application cannot start without the compute infrastructure."
+
+staleness_paths:
+  - "docker-compose.yml"

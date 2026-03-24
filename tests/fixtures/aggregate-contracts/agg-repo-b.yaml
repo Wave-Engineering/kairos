@@ -1,0 +1,52 @@
+contract_version: "0.1.0"
+
+identity:
+  name: repo-b
+  full_name: org-repo-b
+  category: core
+  purpose: "Deploys compute instances into the shared VPC."
+  archetype: cdk-infra
+
+provides:
+  cloudformation_exports:
+    - name: "repo-b-InstanceId"
+      description: "EC2 instance ID for the compute node"
+  docker_images: []
+  docker_networks: []
+  packages: []
+  secrets: []
+  ci_templates: []
+
+consumes:
+  cloudformation_imports:
+    - export: "repo-a-VpcId"
+      from: repo-a
+      description: "VPC to deploy instances into"
+    - export: "repo-a-SubnetIds"
+      from: repo-a
+      description: "Subnets for instance placement"
+  docker_images: []
+  secrets: []
+  repos: []
+
+interfaces:
+  api_endpoints: []
+
+operational:
+  tech_stack:
+    language: python
+    framework: aws-cdk
+    iac: cdk
+  validation_command: "./scripts/ci/validate.sh"
+  test_command: "cdk synth"
+
+gotchas:
+  - severity: high
+    summary: "User-data changes cause instance replacement"
+    detail: "Any modification to user-data triggers full EC2 replacement."
+  - severity: low
+    summary: "Logs are only in CloudWatch"
+    detail: "No local log persistence on the instance."
+
+staleness_paths:
+  - "infrastructure/**"
