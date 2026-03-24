@@ -1,0 +1,17 @@
+# Claude Code
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Kairos generated artifacts
+contracts.db
+
+# OS
+.DS_Store
