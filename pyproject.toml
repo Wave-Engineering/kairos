@@ -12,6 +12,7 @@ dependencies = [
     "jsonschema",
     "sentence-transformers",
     "sqlite-vec",
+    "mcp",
 ]
 
 [project.scripts]
@@ -20,6 +21,7 @@ kairos = "kairos.cli:main"
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "pytest-asyncio",
     "ruff",
 ]
 
@@ -32,3 +34,4 @@ target-version = "py311"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"

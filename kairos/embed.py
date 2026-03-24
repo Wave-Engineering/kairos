@@ -117,6 +117,7 @@ def search(
     model: object,
     db_path: Path,
     top_k: int = 10,
+    conn: sqlite3.Connection | None = None,
 ) -> list[tuple[Chunk, float]]:
     """Search the embedding database for chunks semantically similar to the query.
 
@@ -125,6 +126,8 @@ def search(
         model: A loaded SentenceTransformer model instance.
         db_path: Path to the sqlite-vec database.
         top_k: Maximum number of results to return.
+        conn: Optional pre-opened sqlite connection with sqlite-vec loaded.
+              If provided, the caller is responsible for closing it.
 
     Returns:
         A list of (Chunk, distance) tuples, ordered by ascending distance
@@ -135,10 +138,12 @@ def search(
     # Encode the query.
     query_embedding = model.encode([query])[0]
 
-    conn = sqlite3.connect(str(db_path))
-    conn.enable_load_extension(True)
-    sqlite_vec.load(conn)
-    conn.enable_load_extension(False)
+    own_conn = conn is None
+    if own_conn:
+        conn = sqlite3.connect(str(db_path))
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+        conn.enable_load_extension(False)
 
     # Query sqlite-vec for nearest neighbours.
     rows = conn.execute(
@@ -162,5 +167,6 @@ def search(
             )
             results.append((chunk, distance))
 
-    conn.close()
+    if own_conn:
+        conn.close()
     return results
