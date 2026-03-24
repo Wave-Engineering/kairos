@@ -1,0 +1,111 @@
+# Kairos Contract: blueshift-vpc
+# Authored from deep-dive exploration of the blueshift-vpc codebase.
+# Source: infrastructure/stacks/blueshift_vpc_stack.py, .gitlab-ci.yml, CLAUDE.md, README.md
+
+contract_version: "0.1.0"
+
+identity:
+  name: vpc
+  full_name: blueshift-vpc
+  category: infrastructure
+  purpose: >
+    Provisions shared VPC networking infrastructure for the entire Blueshift
+    platform. Creates a VPC with public and private subnets across 2 AZs,
+    Internet Gateway, NAT Gateway, and an ingress Elastic IP for Traefik.
+    All downstream Blueshift projects (compute, app stacks) consume this VPC
+    via CloudFormation exports rather than managing their own networking.
+  archetype: cdk-infra
+
+provides:
+  cloudformation_exports:
+    - name: "blueshift-vpc-{env}-VpcId"
+      description: "VPC ID for the shared Blueshift VPC"
+    - name: "blueshift-vpc-{env}-VpcCidr"
+      description: "VPC CIDR block (10.0.0.0/16)"
+    - name: "blueshift-vpc-{env}-PublicSubnetIds"
+      description: "Comma-separated public subnet IDs across 2 AZs"
+    - name: "blueshift-vpc-{env}-PrivateSubnetIds"
+      description: "Comma-separated private subnet IDs across 2 AZs"
+    - name: "blueshift-vpc-{env}-AvailabilityZones"
+      description: "Comma-separated availability zone names used by the VPC"
+    - name: "blueshift-vpc-{env}-IngressEipPublicIp"
+      description: "Ingress Elastic IP public address for Traefik reverse proxy"
+    - name: "blueshift-vpc-{env}-IngressEipAllocationId"
+      description: "Ingress Elastic IP allocation ID for EIP association in compute stack"
+  docker_images: []
+  docker_networks: []
+  packages: []
+  secrets: []
+  ci_templates: []
+
+consumes:
+  cloudformation_imports: []
+  docker_images: []
+  secrets: []
+  repos: []
+
+interfaces:
+  api_endpoints: []
+  compose_variables:
+    - name: BLUESHIFT_DOMAIN
+      description: >
+        Base domain for the environment, constructed from the ingress EIP
+        via nip.io (e.g., dev.54.23.45.67.nip.io) or a real domain override.
+        Set as a GitLab group CI variable (environment-scoped) by
+        scripts/ci/post-deploy.sh after each VPC deploy.
+
+operational:
+  tech_stack:
+    language: python
+    framework: aws-cdk
+    iac: cdk
+  validation_command: "./scripts/ci/validate.sh"
+  test_command: "cd infrastructure && uv run cdk synth"
+  deploy_trigger:
+    dev: "manual on MR or release/* branch push"
+    test: "rc tag matching ^rc\\d+\\.\\d+\\.\\d+-\\d+$"
+    prod: "v tag matching ^v\\d+\\.\\d+\\.\\d+$"
+  environments:
+    - dev
+    - test
+    - prod
+
+gotchas:
+  - severity: critical
+    summary: "Cannot delete VPC stack while consuming stacks reference its exports"
+    detail: >
+      CloudFormation prevents stack deletion if any export is still imported
+      by another stack. Teardown order must be: application stacks first,
+      then compute, then VPC. Use 'aws cloudformation list-imports
+      --export-name blueshift-vpc-{env}-VpcId' to check for dependents
+      before attempting deletion.
+  - severity: high
+    summary: "Post-deploy domain update requires BLUESHIFT_ADMIN_TOKEN and GITLAB_GROUP_ID"
+    detail: >
+      The post-deploy.sh script upserts BLUESHIFT_DOMAIN as a GitLab
+      group CI variable. If BLUESHIFT_ADMIN_TOKEN or GITLAB_GROUP_ID are
+      not set, the deployment succeeds but the domain variable is NOT
+      updated, silently breaking downstream projects that depend on it.
+  - severity: medium
+    summary: "VPC and Elastic IP have RETAIN removal policy"
+    detail: >
+      Both the VPC and ingress EIP have RemovalPolicy.RETAIN set in CDK.
+      A 'cdk destroy' will NOT delete these resources — they must be
+      manually cleaned up in the AWS console. This prevents accidental
+      destruction but creates orphaned resources if forgotten.
+  - severity: medium
+    summary: "Single NAT Gateway means private subnet egress is not HA"
+    detail: >
+      Cost optimization uses nat_gateways=1. If the NAT Gateway's AZ
+      has an outage, private subnet egress fails for the other AZ.
+      Production should consider nat_gateways=2 for high availability.
+
+staleness_paths:
+  - "infrastructure/stacks/**"
+  - "infrastructure/app.py"
+  - ".gitlab-ci.yml"
+  - "scripts/ci/post-deploy.sh"
+  - "scripts/ci/validate.sh"
+
+last_verified: "2026-03-24"
+verified_at_commit: "9fe1aeec28edfcc17295b19534492a0a2f29dccb"

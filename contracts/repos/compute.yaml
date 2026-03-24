@@ -1,0 +1,185 @@
+# Kairos Contract: blueshift-compute
+# Authored from deep-dive exploration of the blueshift-compute codebase.
+# Source: infrastructure/stacks/compute_stack.py, .gitlab-ci.yml, CLAUDE.md,
+#         Docs/architecture.md, Docs/deployment.md, scripts/ci/deploy.sh
+
+contract_version: "0.1.0"
+
+identity:
+  name: compute
+  full_name: blueshift-compute
+  category: infrastructure
+  purpose: >
+    Provisions shared platform compute infrastructure for all Blueshift projects.
+    Deploys an EC2 instance running Docker Swarm into the existing VPC
+    (provisioned by blueshift-vpc), with security groups, IAM roles for SSM
+    access, and EIP association. The EC2 user-data bootstraps Docker Swarm,
+    OpenBao agent (secrets), Littleguy (SwarmCD), and SPIRE (workload identity).
+    Platform services (Traefik, Keycloak, Portainer) are deployed as the
+    'blueshift' Docker Swarm stack, creating the blueshift_public overlay
+    network that all downstream app projects join.
+  archetype: cdk-infra
+
+provides:
+  cloudformation_exports:
+    - name: "blueshift-vpc-{env}-Ec2SecurityGroupId"
+      description: "EC2 security group ID for the Blueshift Swarm manager node"
+  docker_images: []
+  docker_networks:
+    - name: blueshift_public
+      scope: swarm
+      description: >
+        Overlay network (172.16.1.0/24) for public-facing services via Traefik.
+        Created by 'docker stack deploy -c docker-compose.yml blueshift'.
+        Downstream app compose files join this network via 'external: true'.
+    - name: blueshift_internal
+      scope: swarm
+      description: >
+        Overlay network (172.16.2.0/24) for internal services. PostgreSQL
+        (Keycloak DB) runs exclusively on this network, not routable from
+        outside the Swarm.
+  packages: []
+  secrets:
+    - path: "/blueshift/{env}/swarm/worker-token"
+      description: "Docker Swarm worker join token (SecureString), exported to SSM by manager user-data"
+    - path: "/blueshift/{env}/swarm/manager-ip"
+      description: "Docker Swarm manager private IP (String), exported to SSM for worker node join"
+  ci_templates: []
+
+consumes:
+  cloudformation_imports:
+    - export: "blueshift-vpc-{env}-VpcId"
+      from: vpc
+      description: "VPC to deploy EC2 instances into"
+    - export: "blueshift-vpc-{env}-PublicSubnetIds"
+      from: vpc
+      description: "Public subnets for EC2 placement (Swarm manager)"
+    - export: "blueshift-vpc-{env}-PrivateSubnetIds"
+      from: vpc
+      description: "Private subnets imported for VPC attribute reconstruction"
+    - export: "blueshift-vpc-{env}-AvailabilityZones"
+      from: vpc
+      description: "Availability zones for VPC attribute reconstruction"
+    - export: "blueshift-vpc-{env}-IngressEipAllocationId"
+      from: vpc
+      description: "Elastic IP allocation ID to associate with the EC2 instance"
+  docker_images:
+    - name: "openbao/openbao"
+      source: "openbao/openbao:2.5.1"
+  secrets:
+    - path: "/blueshift/{env}/openbao/role_id"
+      from: compute
+      description: "OpenBao AppRole role ID for openbao-agent bootstrap, seeded by deploy.sh from COPPERMIND_ROLE_ID CI variable"
+    - path: "/blueshift/{env}/openbao/secret_id"
+      from: compute
+      description: "OpenBao AppRole secret ID for openbao-agent bootstrap, seeded by deploy.sh from COPPERMIND_SECRET_ID CI variable"
+    - path: "/blueshift/{env}/littleguy/gl_read_token"
+      from: compute
+      description: "GitLab read token for SwarmCD to pull compose files and sites config"
+    - path: "/blueshift/{env}/littleguy/sites_repo"
+      from: compute
+      description: "Git URL for sites repository (site-order repo for dev, blueshift-sites for test/prod)"
+    - path: "/blueshift/{env}/littleguy/sites_path"
+      from: compute
+      description: "Path to Docker Compose file within the sites repository"
+  repos:
+    - name: vpc
+      relationship: "Deploys EC2 instances into VPC provisioned by this repo via CloudFormation imports"
+    - name: littleguy
+      relationship: "Bootstraps SwarmCD (littleguy) on EC2 user-data; reads compose file from littleguy repo"
+    - name: sites
+      relationship: "SwarmCD pulls Docker Compose stacks from blueshift-sites (legacy) or site-order repos"
+
+interfaces:
+  api_endpoints:
+    - url: "auth.{DOMAIN}"
+      service: keycloak
+      description: "OIDC/SAML identity provider for all platform services (blueshift realm)"
+    - url: "portainer.{DOMAIN}"
+      service: portainer
+      description: "Container management UI with OIDC authentication via Keycloak"
+    - url: "traefik.{DOMAIN}"
+      service: traefik
+      description: "Traefik reverse proxy dashboard (internal API)"
+    - url: "s3.{DOMAIN}"
+      service: ceph-s3
+      description: "Ceph S3-compatible object storage API"
+    - url: "ceph.{DOMAIN}"
+      service: ceph-dashboard
+      description: "Ceph Dashboard admin UI"
+  compose_variables:
+    - name: DOMAIN
+      description: "Base domain for the environment (e.g., dev.blueshift.plus), used by Traefik Host() rules"
+    - name: STACK_SUFFIX
+      description: "Environment identifier (dev, test, prod), used for CDK stack naming and SSM paths"
+
+operational:
+  tech_stack:
+    language: python
+    framework: aws-cdk
+    iac: cdk
+  validation_command: "./scripts/ci/validate.sh"
+  test_command: "cd infrastructure && pip install -r requirements.txt && STACK_SUFFIX=dev cdk synth --quiet"
+  deploy_trigger:
+    dev: "manual on MR or release/* branch push"
+    test: "rc tag matching ^rc\\d+\\.\\d+\\.\\d+-\\d+$"
+    prod: "v tag matching ^v\\d+\\.\\d+\\.\\d+-\\d+$"
+  environments:
+    - dev
+    - test
+    - prod
+
+gotchas:
+  - severity: critical
+    summary: "user_data_causes_replacement=True — any user-data change destroys the EC2 instance"
+    detail: >
+      The CDK stack sets user_data_causes_replacement=True on the EC2
+      instance. Any modification to the user-data script (adding a
+      bootstrap phase, changing a curl URL, editing comments) triggers
+      full EC2 replacement: instance termination, new instance creation,
+      new IP, Swarm re-initialization, all services offline during
+      replacement. This is intentional for consistency but dangerous if
+      not understood.
+  - severity: critical
+    summary: "CloudFormation stack name is BlueshiftCoreStack, NOT BlueshiftComputeStack"
+    detail: >
+      The CF stack name remains 'BlueshiftCoreStack-{env}' for backwards
+      compatibility. Renaming the stack would cause CloudFormation to
+      treat it as a new stack, destroying and recreating all resources.
+      The Python class is BlueshiftComputeStack but app.py hardcodes
+      stack_name = f'BlueshiftCoreStack-{stack_suffix}'.
+  - severity: high
+    summary: "VPC stack deletion order — compute must be deleted before VPC"
+    detail: >
+      The compute stack imports 5 CloudFormation exports from the VPC
+      stack (VpcId, PublicSubnetIds, PrivateSubnetIds, AvailabilityZones,
+      IngressEipAllocationId). CloudFormation prevents VPC stack deletion
+      while these imports exist. Teardown order: app stacks, then
+      compute, then VPC.
+  - severity: medium
+    summary: "Sites branch auto-detection differs between environments"
+    detail: >
+      deploy.sh resolves the sites repo differently per environment: dev
+      uses a site-order repo (per-env, main branch), while test/prod use
+      blueshift-sites with tag-based promotion (rc*/v* tags resolved via
+      GitLab API). If GL_READ_TOKEN is not set, sites_branch cannot be
+      auto-detected for test/prod.
+  - severity: medium
+    summary: "IMDS hop limit must be 2 for Docker containers"
+    detail: >
+      require_imdsv2=True sets HttpTokens=required but leaves hop limit
+      at 1. Docker overlay/bridge networks add an extra hop, so
+      containers cannot reach the instance metadata service. The stack
+      overrides HttpPutResponseHopLimit to 2 via add_property_override.
+      Removing this override breaks any container that needs IMDS
+      (e.g., AWS SDK credential resolution).
+
+staleness_paths:
+  - "infrastructure/stacks/**"
+  - "infrastructure/app.py"
+  - "scripts/ci/deploy.sh"
+  - "scripts/ci/validate.sh"
+  - ".gitlab-ci.yml"
+
+last_verified: "2026-03-24"
+verified_at_commit: "dcf85096ff908437862553438b045e38d204ed66"
