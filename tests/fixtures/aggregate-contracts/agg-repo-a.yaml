@@ -1,0 +1,48 @@
+contract_version: "0.1.0"
+
+identity:
+  name: repo-a
+  full_name: org-repo-a
+  category: infrastructure
+  purpose: "Provisions shared networking for the platform."
+  archetype: cdk-infra
+
+provides:
+  cloudformation_exports:
+    - name: "repo-a-VpcId"
+      description: "VPC ID for shared networking"
+    - name: "repo-a-SubnetIds"
+      description: "Subnet IDs for compute placement"
+  docker_images: []
+  docker_networks: []
+  packages: []
+  secrets: []
+  ci_templates: []
+
+consumes:
+  cloudformation_imports: []
+  docker_images: []
+  secrets: []
+  repos: []
+
+interfaces:
+  api_endpoints: []
+
+operational:
+  tech_stack:
+    language: python
+    framework: aws-cdk
+    iac: cdk
+  validation_command: "./scripts/ci/validate.sh"
+  test_command: "cdk synth"
+
+gotchas:
+  - severity: critical
+    summary: "Deleting this stack breaks all dependents"
+    detail: "CloudFormation exports are imported by downstream stacks."
+  - severity: medium
+    summary: "NAT Gateway is single-AZ"
+    detail: "Cost optimization uses only one NAT Gateway."
+
+staleness_paths:
+  - "infrastructure/**"

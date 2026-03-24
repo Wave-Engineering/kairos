@@ -6,6 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from kairos.aggregate import aggregate_contracts
 from kairos.staleness import check_all_staleness
 
 
@@ -72,6 +73,23 @@ def _cmd_check_staleness(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def _cmd_aggregate(args: argparse.Namespace) -> int:
+    """Run the aggregate sub-command."""
+    contracts_dir = Path(args.contracts_dir).resolve()
+    output_path = Path(args.output).resolve()
+
+    if not contracts_dir.is_dir():
+        print(f"Error: contracts directory not found: {contracts_dir}", file=sys.stderr)
+        return 1
+
+    markdown = aggregate_contracts(contracts_dir)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(markdown)
+    print(f"Digest written to {output_path}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the ``kairos`` CLI."""
     parser = argparse.ArgumentParser(
@@ -96,6 +114,23 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to the root workspace containing git repositories",
     )
     sp_stale.set_defaults(func=_cmd_check_staleness)
+
+    # -- aggregate --
+    sp_agg = subparsers.add_parser(
+        "aggregate",
+        help="Generate a static markdown digest from contract files",
+    )
+    sp_agg.add_argument(
+        "--contracts-dir",
+        required=True,
+        help="Path to the directory containing contract YAML files",
+    )
+    sp_agg.add_argument(
+        "--output",
+        required=True,
+        help="Path to write the output markdown file",
+    )
+    sp_agg.set_defaults(func=_cmd_aggregate)
 
     args = parser.parse_args(argv)
 
