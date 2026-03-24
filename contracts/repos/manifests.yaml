@@ -1,0 +1,182 @@
+contract_version: "0.1.0"
+
+identity:
+  name: manifests
+  full_name: blueshift-manifests
+  category: deployment
+  purpose: >
+    The deployment menu for the Blueshift platform. Contains compose file
+    fragments for every service, site definitions, and CI scripts that render
+    per-site deployment artifacts. The assembler (render.sh) merges fragments
+    with a shared base, applies environment variants, runs envsubst, and
+    produces a single docker-compose.yml per site. The delivery script
+    (push-site-order.sh) pushes rendered output to per-site site-order repos
+    where SwarmCD picks it up for deployment. Changes flow through a tiered
+    promotion model: dev (release branch merge), test (RC tag), prod (release
+    tag), each with separate approval gates.
+  archetype: meta-tooling
+
+provides:
+  cloudformation_exports: []
+  docker_images: []
+  docker_networks: []
+  packages: []
+  secrets: []
+  ci_templates: []
+
+consumes:
+  docker_images:
+    - name: "traefik"
+      source: "${REGISTRY}/dockerhub/library/traefik:v3.6"
+    - name: "traefik-forward-auth"
+      source: "${REGISTRY}/dockerhub/thomseddon/traefik-forward-auth:2"
+    - name: "postgres"
+      source: "${REGISTRY}/dockerhub/library/postgres:16-alpine"
+    - name: "keycloak"
+      source: "${REGISTRY}/gitlab/analogicdev/platform/iac/tessera/tessera-core/keycloak/prod:1.3.0"
+    - name: "tessera-idp-entra"
+      source: "${REGISTRY}/gitlab/analogicdev/platform/iac/tessera/tessera-idp-entra/${ENV}:1.1.0"
+    - name: "portainer"
+      source: "${REGISTRY}/dockerhub/portainer/portainer-ce:2.39.0-alpine"
+    - name: "homepage"
+      source: "${REGISTRY}/ghcr/gethomepage/homepage:latest"
+    - name: "grafana"
+      source: "${REGISTRY}/dockerhub/grafana/grafana:latest"
+    - name: "grafana-agent"
+      source: "${REGISTRY}/dockerhub/grafana/agent:latest"
+    - name: "litellm"
+      source: "${REGISTRY}/ghcr/berriai/litellm:main-stable"
+    - name: "merlin-n8n"
+      source: "${REGISTRY}/gitlab/analogicdev/applications/merlin/n8n:v0.0.7-105"
+    - name: "merlin-open-webui"
+      source: "${REGISTRY}/gitlab/analogicdev/applications/merlin/open-webui:v0.0.7-105"
+    - name: "peertube"
+      source: "${REGISTRY}/dockerhub/chocobozzz/peertube:production"
+    - name: "ceph"
+      source: "${REGISTRY}/quay/benjamin_holmes/ceph-aio:v18"
+    - name: "outline"
+      source: "${REGISTRY}/dockerhub/outlinewiki/outline:1.6.1"
+    - name: "grist"
+      source: "${REGISTRY}/dockerhub/gristlabs/grist:1.7.11"
+    - name: "semaphore"
+      source: "${REGISTRY}/dockerhub/semaphoreui/semaphore:v2.17.26"
+    - name: "testharness"
+      source: "${REGISTRY}/gitlab/analogicdev/internal/tools/blueshift/blueshift-testharness/${ENV}:173aa3ef"
+    - name: "instigate"
+      source: "${REGISTRY}/gitlab/analogicdev/internal/tools/blueshift/blueshift-instigate/prod:v0.0.1"
+    - name: "mutator"
+      source: "${REGISTRY}/gitlab/analogicdev/internal/tools/blueshift/blueshift-mutator/prod:v0.0.2"
+    - name: "tessera-opa"
+      source: "${REGISTRY}/gitlab/analogicdev/platform/iac/tessera/tessera-opa/${ENV}:1.3.0"
+    - name: "tessera-testclient"
+      source: "${REGISTRY}/gitlab/analogicdev/platform/iac/tessera/tessera-testclient/${ENV}:0.2.0"
+    - name: "blackbox-exporter"
+      source: "${REGISTRY}/dockerhub/prom/blackbox-exporter:latest"
+    - name: "alpine"
+      source: "${REGISTRY}/dockerhub/library/alpine:3.23"
+    - name: "redis"
+      source: "${REGISTRY}/dockerhub/library/redis:7-alpine"
+    - name: "docker-cli"
+      source: "${REGISTRY}/dockerhub/library/docker:cli"
+  secrets:
+    - path: "openbao_secrets volume"
+      from: compute
+      description: >
+        Pre-populated OpenBao secrets volume mounted read-only at /secrets by
+        most services. Created by openbao-agent (platform infrastructure).
+  repos:
+    - name: sites
+      relationship: >
+        blueshift-sites defines per-site .env files and site-order.yaml which
+        control which services each site deploys and their environment variables.
+    - name: compute
+      relationship: >
+        blueshift-compute provisions the EC2 infrastructure and Docker Swarm
+        where rendered compose files are deployed via SwarmCD.
+    - name: littleguy
+      relationship: >
+        blueshift-littleguy deploys SwarmCD which polls the site-order repos
+        that this repo pushes rendered output to.
+
+interfaces:
+  compose_variables:
+    - name: DOMAIN
+      description: "Site domain (e.g., dev.blueshift.plus). Used in Traefik routing rules and service URLs."
+    - name: REGISTRY
+      description: "Container registry URL (e.g., registry.dev.blueshift.plus). Harbor proxy-cache that mirrors upstream registries."
+    - name: ENV
+      description: "Environment name (dev, test, prod). Used in image paths for environment-specific builds."
+    - name: CLUSTER
+      description: "Cluster identifier (e.g., blueshift-dev). Used for AWS resource tagging and identification."
+    - name: COPPERMIND_PATH
+      description: "OpenBao/Vault base path prefix (e.g., secret/data/blueshift/dev). Used in agent.hcl templates."
+    - name: AWS_REGION
+      description: "AWS region (e.g., us-east-1). Used for AWS SDK configuration in services."
+    - name: AMP_REMOTE_WRITE_URL
+      description: "Amazon Managed Prometheus remote write endpoint URL."
+    - name: AMP_WRITE_ROLE_ARN
+      description: "IAM role ARN for Prometheus remote write authentication."
+    - name: AMP_QUERY_URL
+      description: "Amazon Managed Prometheus query endpoint URL."
+    - name: AMP_QUERY_ROLE_ARN
+      description: "IAM role ARN for Prometheus query authentication."
+
+operational:
+  tech_stack:
+    language: shell
+    framework: docker-compose
+    iac: swarm
+  validation_command: "./scripts/ci/validate.sh"
+  test_command: "./scripts/ci/validate.sh"
+  deploy_trigger:
+    dev: "merge to release/* branch (pushes to dev-tier site-order repos)"
+    test: "RC tag rcX.Y.Z-N (pushes to test-tier site-order repos)"
+    prod: "release tag vX.Y.Z-N (pushes to prod-tier site-order repos)"
+  environments:
+    - dev
+    - test
+    - prod
+
+gotchas:
+  - severity: critical
+    summary: "Changes never deploy directly — two review gates required"
+    detail: >
+      Merging to this repo does NOT deploy anything. The CI pipeline renders
+      output and pushes to chore/pending in site-order repos, then creates an
+      MR. A human must approve and merge that site-order MR before SwarmCD
+      deploys. Skipping the site-order review gate or pushing directly to
+      site-order main is impossible by design (no human has write access).
+  - severity: high
+    summary: "envsubst only substitutes whitelisted variables"
+    detail: >
+      render.sh explicitly whitelists which ${VAR} placeholders are substituted
+      (DOMAIN, REGISTRY, ENV, CLUSTER, COPPERMIND_PATH, AWS_REGION, and AMP_*
+      variables). Adding a new placeholder to compose fragments requires adding
+      it to the envsubst whitelist in render.sh AND to site.yaml parsing.
+      Unwhitelisted variables silently remain as literal ${VAR} in the output.
+  - severity: high
+    summary: "yq must be the Go-based version (mikefarah), not the Python wrapper"
+    detail: >
+      render.sh explicitly checks for the Go-based yq
+      (github.com/mikefarah/yq) and will abort if it detects the Python
+      wrapper (which has incompatible syntax). Ensure CI images and local
+      environments have the correct yq installed.
+  - severity: medium
+    summary: "Compose fragment merge order is alphabetical by filename prefix"
+    detail: >
+      Fragments are staged with numeric prefixes (000-_base.yml, 001-traefik.yml,
+      etc.) and merged in lexicographic order. _base always comes first. Later
+      fragments win on scalar conflicts. If two services define the same top-level
+      key, the one processed later overwrites the earlier one.
+
+staleness_paths:
+  - "services/*/compose.yml"
+  - "services/_base/**"
+  - "services/_variants/**"
+  - "sites/*/site.yaml"
+  - "scripts/ci/render.sh"
+  - "scripts/ci/push-site-order.sh"
+  - ".gitlab-ci.yml"
+
+last_verified: "2026-03-24"
+verified_at_commit: "d69ec48"

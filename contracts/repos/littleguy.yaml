@@ -1,0 +1,134 @@
+contract_version: "0.1.0"
+
+identity:
+  name: littleguy
+  full_name: blueshift-littleguy
+  category: deployment
+  purpose: >
+    SwarmCD deployment configuration for Blueshift. Contains the Docker Compose
+    stack definition, SwarmCD config files, and operator scripts that define how
+    SwarmCD (v1.17.0) deploys the Blueshift platform. CDK user-data downloads
+    these files, substitutes environment-specific placeholders from SSM, creates
+    Docker secrets, and deploys SwarmCD as the "littleguy" Swarm stack. SwarmCD
+    then polls a site-order repo for a baked compose file and deploys/updates
+    the "blueshift" stack on change.
+  archetype: compose-standalone
+
+provides:
+  cloudformation_exports: []
+  docker_images: []
+  docker_networks:
+    - name: blueshift_public
+      scope: swarm
+      description: >
+        Overlay network for public-facing services via Traefik. Declared in
+        docker-compose.yml as external:true with attachable:true. Created
+        during initial SwarmCD stack deploy and shared with the blueshift
+        application stack.
+  packages: []
+  secrets: []
+  ci_templates: []
+
+consumes:
+  docker_images:
+    - name: swarm-cd
+      source: "ghcr.io/wave-engineering/swarm-cd:1.17.0"
+  secrets:
+    - path: git_token
+      from: compute
+      description: >
+        GitLab PAT (GL_READ_TOKEN) for cloning private repos. Pre-existing
+        Docker secret created by CDK user-data on the Swarm node.
+    - path: docker_config
+      from: compute
+      description: >
+        Docker auth JSON for pulling images from registry.gitlab.com.
+        Pre-existing Docker secret created by CDK user-data on the Swarm node.
+    - path: "secret/blueshift/{env}/swarmcd"
+      from: sites
+      description: >
+        SwarmCD API token stored in Coppermind. Read by swarmcd-set-branch.sh
+        to authenticate REST API mutation calls.
+  repos:
+    - name: compute
+      relationship: >
+        CDK user-data in blueshift-compute downloads littleguy files, substitutes
+        SSM placeholders, creates Docker secrets, and deploys the littleguy stack.
+    - name: sites
+      relationship: >
+        SwarmCD polls a site-order repo (rendered from blueshift-sites via
+        blueshift-manifests) for the baked compose file it deploys.
+
+interfaces:
+  api_endpoints:
+    - url: "https://gitops.{DOMAIN}"
+      service: swarm-cd
+      description: >
+        SwarmCD web UI and REST API (v1.17.0+). Read endpoints are public;
+        write endpoints (PATCH /stacks/{name}) require a Bearer token set via
+        SWARMCD_API_TOKEN environment variable.
+  compose_variables:
+    - name: __SITES_REPO__
+      description: "Git URL of the site-order repo (substituted from SSM at deploy time)"
+    - name: __SITES_BRANCH__
+      description: "Branch or tag for SwarmCD to checkout (substituted from SSM)"
+    - name: __SITES_REF_TYPE__
+      description: "Reference type: 'branch' or 'tag' (substituted from SSM)"
+    - name: __SITES_PATH__
+      description: "Path to baked compose file in the site-order repo (substituted from SSM)"
+    - name: __SWARMCD_API_TOKEN__
+      description: "Bearer token for SwarmCD REST API mutation endpoints (substituted from SSM)"
+    - name: __SWARMCD_DOMAIN__
+      description: "FQDN for SwarmCD web UI Traefik routing (e.g., gitops.dev.blueshift.plus)"
+
+operational:
+  tech_stack:
+    language: shell
+    framework: docker-compose
+    iac: swarm
+  validation_command: "./scripts/ci/validate.sh"
+  test_command: "./scripts/ci/validate.sh"
+  deploy_trigger:
+    dev: "manual via scripts/redeploy-littleguy.sh dev"
+    test: "manual via scripts/redeploy-littleguy.sh test"
+    prod: "manual via scripts/redeploy-littleguy.sh prod"
+  environments:
+    - dev
+    - test
+    - prod
+
+gotchas:
+  - severity: critical
+    summary: "Docker configs are immutable — stack must be removed and redeployed"
+    detail: >
+      Docker Swarm configs (swarmcd_config, swarmcd_repos, swarmcd_stacks) are
+      immutable once created. Any change to config.yaml, repos.yaml, or
+      stacks.yaml requires 'docker stack rm littleguy' followed by a fresh
+      deploy. The redeploy-littleguy.sh script handles this, but a naive
+      'docker stack deploy' will fail silently with stale config.
+  - severity: high
+    summary: "SwarmCD REST API changes to repos/stacks persist across restarts"
+    detail: >
+      Config is split into three files (config.yaml, repos.yaml, stacks.yaml)
+      specifically so that REST API mutations (e.g., swarmcd-set-branch.sh
+      switching from branch to tag mode) persist across container restarts.
+      If you redeploy littleguy from scratch, those runtime changes are lost
+      and replaced with template defaults from SSM.
+  - severity: medium
+    summary: "Network removal failure is expected during stack teardown"
+    detail: >
+      'docker stack rm littleguy' will report a failure removing
+      blueshift_public network because the blueshift application stack is
+      still using it. The redeploy script filters this expected error.
+      Do not treat it as a real failure.
+
+staleness_paths:
+  - "docker-compose.yml"
+  - "config.yaml"
+  - "repos.yaml"
+  - "stacks.yaml"
+  - "scripts/**"
+  - ".gitlab-ci.yml"
+
+last_verified: "2026-03-24"
+verified_at_commit: "d1ac514"
