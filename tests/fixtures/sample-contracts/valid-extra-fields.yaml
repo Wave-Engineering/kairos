@@ -1,0 +1,25 @@
+contract_version: "0.1.0"
+
+identity:
+  name: extra
+  full_name: org-extra
+  category: application
+  purpose: "A contract with additional fields not defined in the schema for forward compatibility."
+  archetype: swarm-service
+
+# These fields are NOT in the schema — they should be accepted because
+# additionalProperties: true is set at root level.
+custom_metadata:
+  owner: "platform-team"
+  slack_channel: "#platform-alerts"
+
+future_section:
+  feature_flags:
+    - name: "enable-new-auth"
+      description: "Toggle new authentication flow"
+
+staleness_paths:
+  - "src/**"
+
+last_verified: "2026-03-24"
+verified_at_commit: "fff9999"

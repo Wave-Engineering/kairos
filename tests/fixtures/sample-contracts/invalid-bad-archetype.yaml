@@ -1,0 +1,14 @@
+contract_version: "0.1.0"
+
+identity:
+  name: bad-repo
+  full_name: org-bad-repo
+  category: infrastructure
+  purpose: "A repo with an invalid archetype value."
+  archetype: invalid-value
+
+staleness_paths:
+  - "src/**"
+
+last_verified: "2026-03-24"
+verified_at_commit: "def5678"

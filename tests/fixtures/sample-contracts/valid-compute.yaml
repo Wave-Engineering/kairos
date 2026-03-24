@@ -1,0 +1,106 @@
+contract_version: "0.1.0"
+
+identity:
+  name: compute
+  full_name: blueshift-compute
+  category: infrastructure
+  purpose: >
+    Shared compute infrastructure: EC2 instances running Docker Swarm
+    with Traefik reverse proxy, Keycloak identity provider, and core
+    platform services.
+  archetype: cdk-infra
+
+provides:
+  cloudformation_exports:
+    - name: "blueshift-compute-{env}-InstanceId"
+      description: "EC2 instance ID for the Swarm manager node"
+    - name: "blueshift-compute-{env}-PublicIp"
+      description: "Public IP of the Swarm manager"
+  docker_images:
+    - name: "blueshift-mutator"
+      registry: "harbor.blueshift.internal"
+      description: "Secret/config injection sidecar"
+  docker_networks:
+    - name: blueshift_public
+      scope: swarm
+      description: "Overlay network for public-facing services via Traefik"
+  packages: []
+  secrets:
+    - path: "secret/data/blueshift/{env}/swarm"
+      description: "Swarm join tokens and manager credentials"
+  ci_templates: []
+
+consumes:
+  cloudformation_imports:
+    - export: "blueshift-vpc-{env}-VpcId"
+      from: vpc
+      description: "VPC to deploy into"
+    - export: "blueshift-vpc-{env}-PublicSubnetIds"
+      from: vpc
+      description: "Public subnets for EC2 placement"
+  docker_images:
+    - name: "swarm-cd"
+      source: "ghcr.io/wave-engineering/swarm-cd:1.17.0"
+  secrets:
+    - path: "secret/data/blueshift/{env}/registry"
+      from: registry
+      description: "Harbor registry credentials for image pulls"
+  repos:
+    - name: vpc
+      relationship: "Deploys into VPC provisioned by this repo"
+
+interfaces:
+  api_endpoints:
+    - url: "auth.{DOMAIN}"
+      service: keycloak
+      description: "OIDC/SAML identity provider for all platform services"
+    - url: "{DOMAIN}/portainer"
+      service: portainer
+      description: "Container management UI (OIDC via Keycloak)"
+  compose_variables:
+    - name: DOMAIN
+      description: "Base domain for the environment (e.g., dev.blueshift.plus)"
+
+operational:
+  tech_stack:
+    language: python
+    framework: aws-cdk
+    iac: cdk
+  validation_command: "./scripts/ci/validate.sh"
+  test_command: "cd infrastructure && uv run cdk synth"
+  deploy_trigger:
+    dev: "release/* branch push"
+    test: "rc tag (rcX.Y.Z-N)"
+    prod: "v tag (vX.Y.Z-N)"
+  environments:
+    - dev
+    - test
+    - prod
+
+gotchas:
+  - severity: critical
+    summary: "CDK user-data changes trigger EC2 replacement"
+    detail: >
+      user_data_causes_replacement=True in CDK config. Any modification to
+      the EC2 user-data script will destroy and recreate the instance,
+      causing downtime for all services running on the Swarm.
+  - severity: high
+    summary: "VPC stack deletion order matters"
+    detail: >
+      Cannot delete the VPC stack while this stack references its CF exports.
+      Teardown order: application stacks first, then compute, then VPC.
+  - severity: medium
+    summary: "Sites branch auto-detection"
+    detail: >
+      resolve_sites_branch() auto-detects the blueshift-sites git ref per
+      environment. Ensure the sites repo is on the expected branch before
+      deploying compute changes.
+
+staleness_paths:
+  - "infrastructure/stacks/**"
+  - "scripts/ci/deploy*.sh"
+  - "docker-compose*.yml"
+  - ".gitlab-ci.yml"
+
+last_verified: "2026-03-24"
+verified_at_commit: "abc1234"
