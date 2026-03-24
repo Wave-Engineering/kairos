@@ -1,0 +1,14 @@
+contract_version: "0.1.0"
+
+# identity section is intentionally missing — this should fail validation.
+
+provides:
+  cloudformation_exports:
+    - name: "some-export"
+      description: "An export with no identity context"
+
+staleness_paths:
+  - "infrastructure/**"
+
+last_verified: "2026-03-24"
+verified_at_commit: "abc1234"

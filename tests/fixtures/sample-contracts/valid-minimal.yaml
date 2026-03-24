@@ -1,0 +1,8 @@
+contract_version: "0.1.0"
+
+identity:
+  name: minimal
+  full_name: org-minimal
+  category: tooling
+  purpose: "A minimal contract with only required fields."
+  archetype: library

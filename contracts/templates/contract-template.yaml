@@ -1,0 +1,128 @@
+# Kairos Contract Template
+# This template defines the structure of a repository contract.
+# Fill in each field with the appropriate values for your repository.
+# Fields marked with "# TODO: fill in" require your input.
+# Optional sections can be removed if not applicable.
+
+# Version of the contract format — do not change unless upgrading the schema.
+contract_version: "0.1.0"  # TODO: fill in — use the current schema version
+
+# Identity — core identity of the repository.
+identity:
+  # Short name used as the lookup key (e.g., "compute", "vpc").
+  name: "my-repo"  # TODO: fill in
+  # Full repository name as it appears in your Git hosting platform.
+  full_name: "org-my-repo"  # TODO: fill in
+  # Logical grouping: infrastructure, deployment, core, application, tooling, etc.
+  category: "infrastructure"  # TODO: fill in
+  # One-paragraph description of what this repository does and why it exists.
+  purpose: >
+    Describe the repository's primary purpose, the problem it solves,
+    and its role in the broader ecosystem.
+  # TODO: fill in
+  # Architectural pattern this repo follows.
+  # Valid values: cdk-infra, swarm-service, compose-standalone, config-only,
+  #               docs-only, meta-tooling, library
+  archetype: "cdk-infra"  # TODO: fill in — choose from the enum above
+
+# Provides — what this repository provides to the ecosystem.
+provides:
+  # CloudFormation exports that other stacks can import.
+  cloudformation_exports:
+    - name: "my-stack-{env}-ExportName"  # TODO: fill in — the CF export name pattern
+      description: "Description of what this export provides"  # TODO: fill in
+  # Docker images built and published by this repository.
+  docker_images:
+    - name: "my-image"  # TODO: fill in — image name
+      registry: "harbor.example.com"  # TODO: fill in — container registry URL (optional)
+      source: "Dockerfile"  # TODO: fill in — build source path (optional)
+      description: "Description of the image and its purpose"  # TODO: fill in
+  # Docker networks created by this repository's deployment.
+  docker_networks:
+    - name: "my_network"  # TODO: fill in — Docker network name
+      scope: "swarm"  # TODO: fill in — "swarm" for overlay or "local" for bridge
+      description: "Description of network purpose and which services use it"  # TODO: fill in
+  # Software packages published (pip, npm, maven, etc.).
+  packages: []  # TODO: fill in — or leave empty if none
+  # Secrets managed or seeded by this repository.
+  secrets:
+    - path: "secret/data/project/{env}/service"  # TODO: fill in — secret path in vault
+      description: "Description of what this secret contains"  # TODO: fill in
+  # CI/CD templates provided for reuse by other repositories.
+  ci_templates: []  # TODO: fill in — or leave empty if none
+
+# Consumes — what this repository consumes from other repositories.
+consumes:
+  # CloudFormation exports imported from other stacks.
+  cloudformation_imports:
+    - export: "other-stack-{env}-ExportName"  # TODO: fill in — the CF export being consumed
+      from: "other-repo"  # TODO: fill in — the repo that provides this export
+      description: "Why this import is needed"  # TODO: fill in
+  # Docker images pulled from registries.
+  docker_images:
+    - name: "external-image"  # TODO: fill in — image name
+      source: "registry.example.com/image:tag"  # TODO: fill in — full image reference (optional)
+  # Secrets read from vault or other sources.
+  secrets:
+    - path: "secret/data/project/{env}/external"  # TODO: fill in — secret path
+      from: "other-repo"  # TODO: fill in — the repo that manages this secret
+      description: "Why this secret is needed"  # TODO: fill in
+  # Other repositories this repo has a relationship with.
+  repos:
+    - name: "dependency-repo"  # TODO: fill in — the repo name
+      relationship: "Describe the dependency relationship"  # TODO: fill in
+
+# Interfaces — how other systems interact with this repository's outputs.
+interfaces:
+  # API endpoints exposed by services in this repository.
+  api_endpoints:
+    - url: "service.{DOMAIN}/api"  # TODO: fill in — URL pattern with variables
+      service: "my-service"  # TODO: fill in — service name
+      description: "Description of the API and what it provides"  # TODO: fill in
+  # Compose variables that must be set for this repository's services.
+  compose_variables:
+    - name: "DOMAIN"  # TODO: fill in — variable name
+      description: "Base domain for the environment"  # TODO: fill in
+
+# Operational — how to work with this repository.
+operational:
+  tech_stack:
+    language: "python"  # TODO: fill in — primary language
+    framework: "aws-cdk"  # TODO: fill in — primary framework (optional)
+    iac: "cdk"  # TODO: fill in — infrastructure-as-code tool (optional)
+  # Command to run lint/format/typecheck validation.
+  validation_command: "make lint"  # TODO: fill in
+  # Command to run the test suite.
+  test_command: "make test"  # TODO: fill in
+  # What triggers a deployment for each environment.
+  deploy_trigger:
+    dev: "push to release/* branch"  # TODO: fill in
+    test: "rc tag (rcX.Y.Z-N)"  # TODO: fill in
+    prod: "v tag (vX.Y.Z-N)"  # TODO: fill in
+  # List of deployment environments this repo targets.
+  environments:
+    - dev  # TODO: fill in
+    - test  # TODO: fill in
+    - prod  # TODO: fill in
+
+# Gotchas — non-obvious traps, pitfalls, and important operational notes.
+# Severity levels: critical, high, medium, low
+gotchas:
+  - severity: "medium"  # TODO: fill in — critical, high, medium, or low
+    summary: "Brief one-line description of the trap"  # TODO: fill in
+    detail: >
+      Detailed explanation of the gotcha, including what triggers it,
+      what the impact is, and how to avoid or mitigate it.
+  # TODO: fill in
+
+# Staleness paths — file globs identifying which codebase files, if changed,
+# suggest this contract may need review. Changes to these files since
+# verified_at_commit trigger a STALE status.
+staleness_paths:
+  - "infrastructure/**"  # TODO: fill in — paths to monitor for changes
+  - ".gitlab-ci.yml"  # TODO: fill in
+  - "docker-compose*.yml"  # TODO: fill in
+
+# Freshness metadata — when was this contract last verified against the codebase?
+last_verified: "2026-01-01"  # TODO: fill in — ISO 8601 date of last verification
+verified_at_commit: "abc1234def5678"  # TODO: fill in — git SHA at time of verification

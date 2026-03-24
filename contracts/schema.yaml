@@ -1,0 +1,286 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: "Kairos Contract Schema"
+description: "JSON Schema for Kairos contract YAML files that describe repository knowledge for AI agent ecosystems."
+type: object
+additionalProperties: true
+
+required:
+  - contract_version
+  - identity
+
+properties:
+  contract_version:
+    type: string
+    description: "Semantic version of the contract format (e.g., '0.1.0')."
+
+  identity:
+    type: object
+    description: "Core identity of the repository."
+    required:
+      - name
+      - full_name
+      - category
+      - purpose
+      - archetype
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        description: "Short name used as the lookup key (e.g., 'compute')."
+      full_name:
+        type: string
+        description: "Full repository name (e.g., 'blueshift-compute')."
+      category:
+        type: string
+        description: "Logical grouping (e.g., 'infrastructure', 'deployment', 'core', 'application')."
+      purpose:
+        type: string
+        description: "One-paragraph description of what this repository does and why it exists."
+      archetype:
+        type: string
+        description: "Architectural pattern this repo follows."
+        enum:
+          - cdk-infra
+          - swarm-service
+          - compose-standalone
+          - config-only
+          - docs-only
+          - meta-tooling
+          - library
+
+  provides:
+    type: object
+    description: "What this repository provides to the ecosystem."
+    additionalProperties: false
+    properties:
+      cloudformation_exports:
+        type: array
+        items:
+          type: object
+          required:
+            - name
+            - description
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+      docker_images:
+        type: array
+        items:
+          type: object
+          required:
+            - name
+            - description
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            registry:
+              type: string
+            source:
+              type: string
+            description:
+              type: string
+      docker_networks:
+        type: array
+        items:
+          type: object
+          required:
+            - name
+            - scope
+            - description
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            scope:
+              type: string
+            description:
+              type: string
+      packages:
+        type: array
+        items:
+          type: object
+      secrets:
+        type: array
+        items:
+          type: object
+          required:
+            - path
+            - description
+          additionalProperties: false
+          properties:
+            path:
+              type: string
+            description:
+              type: string
+      ci_templates:
+        type: array
+        items:
+          type: object
+
+  consumes:
+    type: object
+    description: "What this repository consumes from other repositories."
+    additionalProperties: false
+    properties:
+      cloudformation_imports:
+        type: array
+        items:
+          type: object
+          required:
+            - export
+            - from
+            - description
+          additionalProperties: false
+          properties:
+            export:
+              type: string
+            from:
+              type: string
+            description:
+              type: string
+      docker_images:
+        type: array
+        items:
+          type: object
+          required:
+            - name
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            source:
+              type: string
+      secrets:
+        type: array
+        items:
+          type: object
+          required:
+            - path
+            - from
+            - description
+          additionalProperties: false
+          properties:
+            path:
+              type: string
+            from:
+              type: string
+            description:
+              type: string
+      repos:
+        type: array
+        items:
+          type: object
+          required:
+            - name
+            - relationship
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            relationship:
+              type: string
+
+  interfaces:
+    type: object
+    description: "How other systems interact with this repository's outputs."
+    additionalProperties: false
+    properties:
+      api_endpoints:
+        type: array
+        items:
+          type: object
+          required:
+            - url
+            - service
+            - description
+          additionalProperties: false
+          properties:
+            url:
+              type: string
+            service:
+              type: string
+            description:
+              type: string
+      compose_variables:
+        type: array
+        items:
+          type: object
+          required:
+            - name
+            - description
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+
+  operational:
+    type: object
+    description: "How to work with this repository."
+    additionalProperties: false
+    properties:
+      tech_stack:
+        type: object
+        additionalProperties: false
+        properties:
+          language:
+            type: string
+          framework:
+            type: string
+          iac:
+            type: string
+      validation_command:
+        type: string
+      test_command:
+        type: string
+      deploy_trigger:
+        type: object
+        additionalProperties:
+          type: string
+      environments:
+        type: array
+        items:
+          type: string
+
+  gotchas:
+    type: array
+    description: "Non-obvious traps, pitfalls, and important operational notes."
+    items:
+      type: object
+      required:
+        - severity
+        - summary
+        - detail
+      additionalProperties: false
+      properties:
+        severity:
+          type: string
+          enum:
+            - critical
+            - high
+            - medium
+            - low
+        summary:
+          type: string
+        detail:
+          type: string
+
+  staleness_paths:
+    type: array
+    description: "File globs identifying which codebase files, if changed, suggest the contract may need review."
+    items:
+      type: string
+
+  last_verified:
+    type: string
+    description: "Date when this contract was last verified against the codebase (ISO 8601 date format)."
+    format: date
+
+  verified_at_commit:
+    type: string
+    description: "Git SHA of the commit at which this contract was last verified."
