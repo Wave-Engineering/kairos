@@ -77,9 +77,67 @@ Contract YAML  →  Chunker  →  Embedder  →  sqlite-vec  →  MCP Server  �
 | Embeddings | sentence-transformers | Local, offline, no API costs |
 | Interface | MCP | Standard protocol, works with any AI client |
 
+## Installation
+
+Requires Python 3.11+.
+
+```bash
+git clone git@github.com:Wave-Engineering/kairos.git
+cd kairos
+pip install -e .
+```
+
+Verify:
+
+```bash
+kairos --help
+```
+
+## Quickstart
+
+```bash
+# 1. Embed contracts into the vector database
+kairos embed --contracts-dir contracts/repos --db contracts/contracts.db
+
+# 2. Start the MCP server
+kairos serve --contracts-dir contracts/repos --db contracts/contracts.db
+
+# 3. Configure Claude Code (add to .claude/settings.local.json)
+```
+
+```json
+{
+  "mcpServers": {
+    "kairos": {
+      "command": "kairos",
+      "args": [
+        "serve",
+        "--contracts-dir", "/absolute/path/to/contracts/repos",
+        "--db", "/absolute/path/to/contracts/contracts.db"
+      ]
+    }
+  }
+}
+```
+
+See the full [Quickstart Guide](docs/quickstart.md) for a step-by-step walkthrough.
+
+## Configuration
+
+Kairos provides four CLI subcommands:
+
+| Command | Description |
+|---------|-------------|
+| `kairos embed` | Embed contract chunks into a sqlite-vec database |
+| `kairos serve` | Run the Kairos MCP server (stdio transport) |
+| `kairos check-staleness` | Check contract staleness against git history |
+| `kairos aggregate` | Generate a static Markdown digest from contracts |
+
+See the full [Configuration Reference](docs/configuration.md) for all CLI flags, MCP tools, and directory layout.
+
 ## Status
 
-**Pre-alpha.** See [docs/PRD.md](docs/PRD.md) for the full product requirements document.
+**Alpha.** Core functionality is implemented: contract schema, chunker, embedder, MCP server with semantic search, staleness detection, and aggregation. See [docs/PRD.md](docs/PRD.md) for the full product requirements document.
 
 ## License
 
