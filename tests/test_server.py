@@ -59,11 +59,16 @@ def server(contracts_dir: Path, db_path: Path, model):
 class TestToolRegistration:
     """Verify the server exposes exactly the expected tools."""
 
-    async def test_server_registers_three_tools(self, server):
-        """The MCP server should register exactly 3 core tools."""
+    async def test_server_registers_four_tools(self, server):
+        """The MCP server should register exactly 4 tools."""
         tools = await server.list_tools()
         tool_names = sorted(t.name for t in tools)
-        assert tool_names == ["find_relevant_contracts", "get_contract", "list_contracts"]
+        assert tool_names == [
+            "check_staleness",
+            "find_relevant_contracts",
+            "get_contract",
+            "list_contracts",
+        ]
 
 
 class TestFindRelevantContracts:
