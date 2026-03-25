@@ -120,7 +120,8 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         print(f"Error: database not found: {db_path}", file=sys.stderr)
         return 1
 
-    serve_main(str(contracts_dir), str(db_path))
+    workspace = getattr(args, "workspace", None)
+    serve_main(str(contracts_dir), str(db_path), workspace=workspace)
     return 0
 
 
@@ -197,6 +198,11 @@ def main(argv: list[str] | None = None) -> int:
         "--db",
         required=True,
         help="Path to the sqlite-vec database file",
+    )
+    sp_serve.add_argument(
+        "--workspace",
+        default=None,
+        help="Path to the root workspace containing git repositories (enables staleness checks)",
     )
     sp_serve.set_defaults(func=_cmd_serve)
 

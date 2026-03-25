@@ -12,7 +12,9 @@ import yaml
 from mcp.server.fastmcp import FastMCP
 
 from kairos.embed import search
-from kairos.models import Contract
+from kairos.models import Contract, StalenessReport
+from kairos.staleness import check_all_staleness as _check_all_staleness
+from kairos.staleness import check_staleness as _check_staleness
 
 
 def _load_contracts(contracts_dir: Path) -> dict[str, Contract]:
@@ -57,19 +59,46 @@ def _open_vec_connection(db_path: Path) -> sqlite3.Connection:
     return conn
 
 
+def _format_staleness_report(report: StalenessReport) -> str:
+    """Format a StalenessReport as human-readable text.
+
+    Args:
+        report: A StalenessReport to format.
+
+    Returns:
+        A formatted string with status, message, changed files, and commits since.
+    """
+    lines: list[str] = [
+        f"## {report.repo_name}",
+        f"**Status:** {report.status}",
+        f"**Message:** {report.message}",
+    ]
+
+    if report.changed_files:
+        lines.append(f"**Changed files:** {', '.join(report.changed_files)}")
+
+    if report.commits_since > 0:
+        lines.append(f"**Commits since verification:** {report.commits_since}")
+
+    return "\n".join(lines)
+
+
 def create_server(
     contracts_dir: Path,
     db_path: Path,
+    workspace_path: Path | None = None,
 ) -> FastMCP:
     """Create and configure a Kairos MCP server.
 
     Loads all contract YAML files into memory, opens the sqlite-vec database,
-    and loads the sentence-transformers model. Registers three tools:
-    find_relevant_contracts, get_contract, and list_contracts.
+    and loads the sentence-transformers model. Registers four tools:
+    check_staleness, find_relevant_contracts, get_contract, and list_contracts.
 
     Args:
         contracts_dir: Directory containing contract YAML files.
         db_path: Path to the sqlite-vec database file.
+        workspace_path: Root directory containing the git repositories.
+            Required for the check_staleness tool.
 
     Returns:
         A configured FastMCP server instance ready to run.
@@ -86,6 +115,7 @@ def create_server(
         state["contracts"] = _load_contracts(contracts_dir)
         state["model"] = SentenceTransformer("all-MiniLM-L6-v2")
         state["conn"] = _open_vec_connection(db_path)
+        state["workspace_path"] = workspace_path
 
         yield state
 
@@ -93,6 +123,47 @@ def create_server(
 
     mcp = FastMCP("kairos", lifespan=lifespan)
     mcp._kairos_state = state  # type: ignore[attr-defined]
+
+    @mcp.tool()
+    def check_staleness(repo_name: str | None = None) -> str:
+        """Check whether contracts are stale relative to git history.
+
+        When called with a specific repo_name, checks just that contract.
+        When called without arguments, checks all loaded contracts.
+
+        Args:
+            repo_name: Repository name to check (e.g., "vpc"). If None,
+                checks all loaded contracts.
+        """
+        workspace = state.get("workspace_path")
+        if workspace is None:
+            return "Error: workspace_path not configured. Pass --workspace to the serve command."
+
+        contracts = state["contracts"]
+
+        if repo_name is not None:
+            # Single repo check.
+            contract = contracts.get(repo_name)
+            if contract is None:
+                available = sorted(contracts.keys())
+                return (
+                    f"Error: no contract found for '{repo_name}'. "
+                    f"Available repos: {', '.join(available)}"
+                )
+
+            repo_path = workspace / contract.identity.full_name
+            report = _check_staleness(contract, repo_path)
+            return _format_staleness_report(report)
+
+        # All repos check.
+        reports = _check_all_staleness(contracts_dir, workspace)
+        if not reports:
+            return "No contracts found."
+
+        sections: list[str] = []
+        for name in sorted(reports.keys()):
+            sections.append(_format_staleness_report(reports[name]))
+        return "\n\n---\n\n".join(sections)
 
     @mcp.tool()
     def find_relevant_contracts(query: str, top_k: int = 3) -> str:
@@ -205,22 +276,30 @@ def create_server(
 def main(
     contracts_dir: str,
     db: str,
+    workspace: str | None = None,
 ) -> None:
     """Entry point for running the Kairos MCP server.
 
     Args:
         contracts_dir: Path to the directory containing contract YAML files.
         db: Path to the sqlite-vec database file.
+        workspace: Path to the root workspace containing git repositories.
     """
+    workspace_path = Path(workspace).resolve() if workspace else None
     server = create_server(
         contracts_dir=Path(contracts_dir).resolve(),
         db_path=Path(db).resolve(),
+        workspace_path=workspace_path,
     )
     server.run(transport="stdio")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python -m kairos.server <contracts_dir> <db_path>", file=sys.stderr)
+    if len(sys.argv) < 3:
+        print(
+            "Usage: python -m kairos.server <contracts_dir> <db_path> [workspace_path]",
+            file=sys.stderr,
+        )
         sys.exit(1)
-    main(sys.argv[1], sys.argv[2])
+    workspace_arg = sys.argv[3] if len(sys.argv) > 3 else None
+    main(sys.argv[1], sys.argv[2], workspace=workspace_arg)
