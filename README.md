@@ -99,36 +99,22 @@ kairos --help
 # 1. Embed contracts into the vector database
 kairos embed --contracts-dir contracts/repos --db contracts/contracts.db
 
-# 2. Start the MCP server
-kairos serve --contracts-dir contracts/repos --db contracts/contracts.db
+# 2. Install into Claude Code settings (resolves paths automatically)
+kairos install --contracts-dir contracts/repos --db contracts/contracts.db
 
-# 3. Configure Claude Code (add to .claude/settings.local.json)
-```
-
-```json
-{
-  "mcpServers": {
-    "kairos": {
-      "command": "kairos",
-      "args": [
-        "serve",
-        "--contracts-dir", "/absolute/path/to/contracts/repos",
-        "--db", "/absolute/path/to/contracts/contracts.db"
-      ]
-    }
-  }
-}
+# 3. Restart Claude Code — kairos MCP tools are now available
 ```
 
 See the full [Quickstart Guide](docs/quickstart.md) for a step-by-step walkthrough.
 
 ## Configuration
 
-Kairos provides four CLI subcommands:
+Kairos provides five CLI subcommands:
 
 | Command | Description |
 |---------|-------------|
 | `kairos embed` | Embed contract chunks into a sqlite-vec database |
+| `kairos install` | Add Kairos MCP server to Claude Code settings |
 | `kairos serve` | Run the Kairos MCP server (stdio transport) |
 | `kairos check-staleness` | Check contract staleness against git history |
 | `kairos aggregate` | Generate a static Markdown digest from contracts |

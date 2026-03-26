@@ -4,7 +4,15 @@ This document covers how to configure Kairos for use with Claude Code and other 
 
 ## Claude Code MCP Configuration
 
-Add the following to your `.claude/settings.local.json` (per-project) or `~/.claude/settings.json` (global):
+The easiest way to configure Claude Code is with `kairos install`:
+
+```bash
+kairos install --contracts-dir contracts/repos --db contracts/contracts.db
+```
+
+This writes the correct JSON to `.claude/settings.local.json` (or `~/.claude/settings.json` with `--scope user`), resolving all paths to absolute. See the [`kairos install`](#kairos-install) CLI reference below.
+
+Alternatively, manually add the following to `.claude/settings.local.json` (per-project) or `~/.claude/settings.json` (global):
 
 ```json
 {
@@ -36,7 +44,7 @@ The `--workspace` flag is optional. If omitted, the `check_staleness` MCP tool w
 
 ## CLI Reference
 
-Kairos provides four subcommands. Run any with `--help` for full usage.
+Kairos provides five subcommands. Run any with `--help` for full usage.
 
 ### `kairos embed`
 
@@ -119,6 +127,36 @@ kairos serve --contracts-dir <path> --db <path> [--workspace <path>]
 | `get_contract` | Returns the full YAML for a specific contract by repo name |
 | `list_contracts` | Lists all loaded contracts with identity summaries |
 | `check_staleness` | Checks whether contracts are stale relative to git history |
+
+### `kairos install`
+
+Adds the Kairos MCP server configuration to a Claude Code settings file. Resolves all paths to absolute and preserves any existing MCP servers in the file.
+
+```
+kairos install --contracts-dir <path> --db <path> [--scope project|user]
+```
+
+| Flag | Required | Default | Description |
+|------|----------|---------|-------------|
+| `--contracts-dir` | Yes | — | Directory containing contract YAML files |
+| `--db` | Yes | — | Path to the sqlite-vec database file |
+| `--scope` | No | `project` | `project` writes `.claude/settings.local.json` in the current directory; `user` writes `~/.claude/settings.json` |
+
+**Examples:**
+
+```bash
+# Add to project settings (most common)
+kairos install --contracts-dir contracts/repos --db contracts/contracts.db
+
+# Add to user-level settings (available in all projects)
+kairos install --scope user --contracts-dir contracts/repos --db contracts/contracts.db
+```
+
+**Behavior:**
+- Creates the settings file and `.claude/` directory if they don't exist.
+- Merges `mcpServers.kairos` into the settings without touching other configured MCP servers.
+- If a `kairos` entry already exists, it is updated with the new paths.
+- Errors cleanly if the existing settings file contains malformed JSON.
 
 ## Directory Layout
 

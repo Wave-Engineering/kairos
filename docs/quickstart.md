@@ -24,7 +24,7 @@ Verify the installation:
 kairos --help
 ```
 
-You should see the top-level help with the available subcommands: `embed`, `check-staleness`, `aggregate`, and `serve`.
+You should see the top-level help with the available subcommands: `embed`, `check-staleness`, `aggregate`, `serve`, and `install`.
 
 ## 2. Write Your First Contract
 
@@ -120,10 +120,18 @@ Generate the vector database from your contract files:
 kairos embed --contracts-dir contracts/repos --db contracts/contracts.db
 ```
 
-Output:
+After embedding, kairos prints next-step suggestions with your resolved absolute paths:
 
 ```
-Embedded 42 chunks across 1 contracts into /path/to/contracts/contracts.db
+Embedded 42 chunks across 1 contracts into /home/you/kairos/contracts/contracts.db
+
+Next steps:
+
+  Start the MCP server:
+    kairos serve --contracts-dir /home/you/kairos/contracts/repos --db /home/you/kairos/contracts/contracts.db
+
+  Or install into Claude Code settings:
+    kairos install --contracts-dir /home/you/kairos/contracts/repos --db /home/you/kairos/contracts/contracts.db
 ```
 
 The first run downloads the `all-MiniLM-L6-v2` sentence-transformers model (~80 MB). Subsequent runs use the cached model.
@@ -151,7 +159,19 @@ kairos serve \
 
 ## 5. Configure Claude Code
 
-Add the Kairos MCP server to your Claude Code project configuration. Create or edit `.claude/settings.local.json`:
+The easiest way is to use `kairos install`, which writes the correct JSON for you:
+
+```bash
+# Add to project settings (.claude/settings.local.json in current directory)
+kairos install --contracts-dir contracts/repos --db contracts/contracts.db
+
+# Or add to user settings (~/.claude/settings.json)
+kairos install --scope user --contracts-dir contracts/repos --db contracts/contracts.db
+```
+
+This resolves all paths to absolute, preserves any other MCP servers already configured, and writes the settings file. No manual JSON editing required.
+
+Alternatively, you can manually create or edit `.claude/settings.local.json`:
 
 ```json
 {
