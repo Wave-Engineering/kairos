@@ -110,7 +110,7 @@ last_verified: "2026-01-01"
 verified_at_commit: "abc1234"
 ```
 
-See `contracts/templates/contract-template.yaml` for the full template with all fields documented.
+See `contracts/templates/contract-template.yaml` for the full template with all fields documented. The [Contract Authoring Guide](contracts-guide.md) covers best practices for writing effective contracts.
 
 ## 3. Embed Contracts
 
@@ -194,6 +194,8 @@ Claude: [calls get_contract("compute")]
 
 ## Next Steps
 
+- Read the [Contract Authoring Guide](contracts-guide.md) for best practices on writing high-fidelity contracts.
 - Read the full [Configuration Reference](configuration.md) for all CLI flags and MCP tools.
+- Read the [Architecture Reference](architecture.md) for technical internals and design decisions.
 - Use `kairos check-staleness` in CI to detect contracts that need review.
 - Use `kairos aggregate` to generate a Markdown digest for human review.

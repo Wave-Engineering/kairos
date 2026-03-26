@@ -2,6 +2,8 @@
 
 > **Audience:** Developers (human or AI) who need to understand how kairos works internally.
 > This is a technical reference, not a tutorial. For usage, see [quickstart.md](quickstart.md).
+> For contract authoring guidance, see [contracts-guide.md](contracts-guide.md).
+> For CLI flags and MCP tool configuration, see [configuration.md](configuration.md).
 
 ---
 
@@ -119,6 +121,7 @@ kairos/
   docs/
     PRD.md             # Historical product requirements (Waves 1-6)
     architecture.md    # This document
+    contracts-guide.md # How to write effective contracts
     quickstart.md      # Getting started guide
     configuration.md   # CLI flags, MCP tools, directory layout
 ```

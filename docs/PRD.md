@@ -1,4 +1,6 @@
-> **Historical Document.** This PRD guided the implementation of Waves 1-6. For the current architecture as-built, see [architecture.md](architecture.md).
+> **Historical Document.** This PRD guided the initial implementation (Waves 1-6, March 2026).
+> For current architecture and design decisions, see [architecture.md](architecture.md).
+> The codebase is the source of truth.
 
 # Kairos — Product Requirements Document
 
