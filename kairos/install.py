@@ -1,4 +1,4 @@
-"""Install Kairos MCP server configuration into Claude Code settings."""
+"""Install Kairos MCP server configuration into Claude Code MCP config."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ from pathlib import Path
 
 
 def _settings_path(scope: str) -> Path:
-    """Return the target settings file path for the given scope."""
+    """Return the target MCP config file path for the given scope."""
     if scope == "user":
-        return Path.home() / ".claude" / "settings.json"
-    return Path.cwd() / ".claude" / "settings.local.json"
+        return Path.home() / ".claude.json"
+    return Path.cwd() / ".mcp.json"
 
 
 def install_mcp_config(
@@ -18,17 +18,16 @@ def install_mcp_config(
     db_path: Path,
     scope: str = "project",
 ) -> Path:
-    """Add kairos MCP server configuration to a Claude Code settings file.
+    """Add kairos MCP server configuration to a Claude Code MCP config file.
 
     Args:
         contracts_dir: Path to the contracts directory (resolved to absolute).
         db_path: Path to the sqlite-vec database (resolved to absolute).
-        scope: Either ``"project"`` (writes ``.claude/settings.local.json``
-               in the current directory) or ``"user"`` (writes
-               ``~/.claude/settings.json``).
+        scope: Either ``"project"`` (writes ``.mcp.json`` in the current
+               directory) or ``"user"`` (writes ``~/.claude.json``).
 
     Returns:
-        The path to the settings file that was written.
+        The path to the config file that was written.
 
     Raises:
         ValueError: If scope is invalid or JSON is malformed.

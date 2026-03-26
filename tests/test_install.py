@@ -1,4 +1,4 @@
-"""Tests for kairos.install — MCP server configuration into Claude Code settings."""
+"""Tests for kairos.install — MCP server configuration into Claude Code MCP config."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from kairos.install import install_mcp_config
 class TestInstallMcpConfig:
     """Unit tests for install_mcp_config()."""
 
-    def test_creates_settings_file(self, tmp_path: Path, monkeypatch):
-        """Settings file is created when it doesn't exist."""
+    def test_creates_config_file(self, tmp_path: Path, monkeypatch):
+        """Config file is created when it doesn't exist."""
         monkeypatch.chdir(tmp_path)
         contracts = tmp_path / "contracts"
         contracts.mkdir()
@@ -22,7 +22,7 @@ class TestInstallMcpConfig:
 
         result = install_mcp_config(contracts, db, scope="project")
 
-        expected = tmp_path / ".claude" / "settings.local.json"
+        expected = tmp_path / ".mcp.json"
         assert result == expected
         assert expected.exists()
 
@@ -31,7 +31,7 @@ class TestInstallMcpConfig:
         assert "kairos" in settings["mcpServers"]
 
     def test_project_scope_path(self, tmp_path: Path, monkeypatch):
-        """Project scope writes to .claude/settings.local.json in cwd."""
+        """Project scope writes to .mcp.json in cwd."""
         monkeypatch.chdir(tmp_path)
         contracts = tmp_path / "contracts"
         contracts.mkdir()
@@ -39,10 +39,10 @@ class TestInstallMcpConfig:
 
         result = install_mcp_config(contracts, db, scope="project")
 
-        assert result == tmp_path / ".claude" / "settings.local.json"
+        assert result == tmp_path / ".mcp.json"
 
     def test_user_scope_path(self, tmp_path: Path, monkeypatch):
-        """User scope writes to ~/.claude/settings.json."""
+        """User scope writes to ~/.claude.json."""
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         contracts = tmp_path / "contracts"
         contracts.mkdir()
@@ -50,7 +50,7 @@ class TestInstallMcpConfig:
 
         result = install_mcp_config(contracts, db, scope="user")
 
-        assert result == tmp_path / ".claude" / "settings.json"
+        assert result == tmp_path / ".claude.json"
 
     def test_absolute_paths_in_config(self, tmp_path: Path, monkeypatch):
         """Contracts dir and db paths are resolved to absolute in the output."""
@@ -61,8 +61,8 @@ class TestInstallMcpConfig:
 
         install_mcp_config(contracts, db, scope="project")
 
-        settings_file = tmp_path / ".claude" / "settings.local.json"
-        settings = json.loads(settings_file.read_text())
+        config_file = tmp_path / ".mcp.json"
+        settings = json.loads(config_file.read_text())
         args = settings["mcpServers"]["kairos"]["args"]
 
         # All paths in args should be absolute.
@@ -72,15 +72,13 @@ class TestInstallMcpConfig:
         assert Path(args[db_idx]).is_absolute()
 
     def test_preserves_existing_servers(self, tmp_path: Path, monkeypatch):
-        """Other MCP servers in the settings file are not overwritten."""
+        """Other MCP servers in the config file are not overwritten."""
         monkeypatch.chdir(tmp_path)
         contracts = tmp_path / "contracts"
         contracts.mkdir()
         db = tmp_path / "test.db"
 
         # Pre-populate with another MCP server.
-        claude_dir = tmp_path / ".claude"
-        claude_dir.mkdir()
         existing = {
             "mcpServers": {
                 "other-server": {
@@ -89,11 +87,11 @@ class TestInstallMcpConfig:
                 }
             }
         }
-        (claude_dir / "settings.local.json").write_text(json.dumps(existing))
+        (tmp_path / ".mcp.json").write_text(json.dumps(existing))
 
         install_mcp_config(contracts, db, scope="project")
 
-        settings = json.loads((claude_dir / "settings.local.json").read_text())
+        settings = json.loads((tmp_path / ".mcp.json").read_text())
         assert "other-server" in settings["mcpServers"]
         assert "kairos" in settings["mcpServers"]
 
@@ -105,8 +103,6 @@ class TestInstallMcpConfig:
         db = tmp_path / "test.db"
 
         # Pre-populate with stale kairos config.
-        claude_dir = tmp_path / ".claude"
-        claude_dir.mkdir()
         existing = {
             "mcpServers": {
                 "kairos": {
@@ -115,38 +111,37 @@ class TestInstallMcpConfig:
                 }
             }
         }
-        (claude_dir / "settings.local.json").write_text(json.dumps(existing))
+        (tmp_path / ".mcp.json").write_text(json.dumps(existing))
 
         install_mcp_config(contracts, db, scope="project")
 
-        settings = json.loads((claude_dir / "settings.local.json").read_text())
+        settings = json.loads((tmp_path / ".mcp.json").read_text())
         args = settings["mcpServers"]["kairos"]["args"]
         assert "/old/path" not in args
         assert str(contracts.resolve()) in args
 
-    def test_creates_directory(self, tmp_path: Path, monkeypatch):
-        """.claude/ directory is created if it doesn't exist."""
-        monkeypatch.chdir(tmp_path)
+    def test_creates_parent_directory(self, tmp_path: Path, monkeypatch):
+        """Parent directory is created for user scope (~/.claude.json)."""
+        fake_home = tmp_path / "fakehome"
+        monkeypatch.setattr(Path, "home", lambda: fake_home)
         contracts = tmp_path / "contracts"
         contracts.mkdir()
         db = tmp_path / "test.db"
 
-        assert not (tmp_path / ".claude").exists()
+        assert not fake_home.exists()
 
-        install_mcp_config(contracts, db, scope="project")
+        install_mcp_config(contracts, db, scope="user")
 
-        assert (tmp_path / ".claude").is_dir()
+        assert (fake_home / ".claude.json").exists()
 
     def test_malformed_json_raises(self, tmp_path: Path, monkeypatch):
-        """Malformed JSON in existing settings produces a clear error."""
+        """Malformed JSON in existing config produces a clear error."""
         monkeypatch.chdir(tmp_path)
         contracts = tmp_path / "contracts"
         contracts.mkdir()
         db = tmp_path / "test.db"
 
-        claude_dir = tmp_path / ".claude"
-        claude_dir.mkdir()
-        (claude_dir / "settings.local.json").write_text("{broken json")
+        (tmp_path / ".mcp.json").write_text("{broken json")
 
         with pytest.raises(ValueError, match="Malformed JSON"):
             install_mcp_config(contracts, db, scope="project")
@@ -163,9 +158,7 @@ class TestInstallMcpConfig:
         contracts.mkdir()
         db = tmp_path / "test.db"
 
-        claude_dir = tmp_path / ".claude"
-        claude_dir.mkdir()
-        (claude_dir / "settings.local.json").write_text(json.dumps({"mcpServers": "not-a-dict"}))
+        (tmp_path / ".mcp.json").write_text(json.dumps({"mcpServers": "not-a-dict"}))
 
         with pytest.raises(ValueError, match="mcpServers must be an object"):
             install_mcp_config(contracts, db, scope="project")
@@ -177,14 +170,12 @@ class TestInstallMcpConfig:
         contracts.mkdir()
         db = tmp_path / "test.db"
 
-        claude_dir = tmp_path / ".claude"
-        claude_dir.mkdir()
         existing = {"theme": "dark", "mcpServers": {}}
-        (claude_dir / "settings.local.json").write_text(json.dumps(existing))
+        (tmp_path / ".mcp.json").write_text(json.dumps(existing))
 
         install_mcp_config(contracts, db, scope="project")
 
-        settings = json.loads((claude_dir / "settings.local.json").read_text())
+        settings = json.loads((tmp_path / ".mcp.json").read_text())
         assert settings["theme"] == "dark"
         assert "kairos" in settings["mcpServers"]
 
@@ -193,7 +184,7 @@ class TestInstallCli:
     """CLI-level tests for kairos install subcommand."""
 
     def test_install_via_cli(self, tmp_path: Path, monkeypatch, capsys):
-        """kairos install --scope project writes settings and prints confirmation."""
+        """kairos install --scope project writes config and prints confirmation."""
         from kairos.cli import main
 
         monkeypatch.chdir(tmp_path)
@@ -219,8 +210,8 @@ class TestInstallCli:
         assert "configured" in captured.out
         assert "Restart Claude Code" in captured.out
 
-        settings_file = tmp_path / ".claude" / "settings.local.json"
-        assert settings_file.exists()
+        config_file = tmp_path / ".mcp.json"
+        assert config_file.exists()
 
     def test_install_missing_contracts_dir(self, tmp_path: Path, capsys):
         """kairos install with nonexistent contracts dir returns error."""
@@ -240,17 +231,15 @@ class TestInstallCli:
         captured = capsys.readouterr()
         assert "Error" in captured.err
 
-    def test_install_malformed_settings(self, tmp_path: Path, monkeypatch, capsys):
-        """kairos install with malformed existing settings returns error."""
+    def test_install_malformed_config(self, tmp_path: Path, monkeypatch, capsys):
+        """kairos install with malformed existing config returns error."""
         from kairos.cli import main
 
         monkeypatch.chdir(tmp_path)
         contracts = tmp_path / "contracts"
         contracts.mkdir()
 
-        claude_dir = tmp_path / ".claude"
-        claude_dir.mkdir()
-        (claude_dir / "settings.local.json").write_text("{broken")
+        (tmp_path / ".mcp.json").write_text("{broken")
 
         exit_code = main(
             [
