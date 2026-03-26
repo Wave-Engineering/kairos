@@ -592,3 +592,9 @@ Omitting a field is ambiguous -- it could mean "none" or "I forgot to fill this 
 7. Validate your contract against the [schema](../contracts/schema.yaml).
 
 For the full field reference, see the [contract schema](../contracts/schema.yaml).
+
+## See Also
+
+- [Quickstart Guide](quickstart.md) -- install Kairos, write your first contract, and start querying
+- [Configuration Reference](configuration.md) -- all CLI flags, MCP tools, and directory layout
+- [Architecture Reference](architecture.md) -- technical internals, chunking strategy, and design decisions
