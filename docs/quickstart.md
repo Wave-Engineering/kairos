@@ -162,16 +162,16 @@ kairos serve \
 The easiest way is to use `kairos install`, which writes the correct JSON for you:
 
 ```bash
-# Add to project settings (.claude/settings.local.json in current directory)
+# Add to project config (.mcp.json in current directory)
 kairos install --contracts-dir contracts/repos --db contracts/contracts.db
 
-# Or add to user settings (~/.claude/settings.json)
+# Or add to user config (~/.claude.json)
 kairos install --scope user --contracts-dir contracts/repos --db contracts/contracts.db
 ```
 
-This resolves all paths to absolute, preserves any other MCP servers already configured, and writes the settings file. No manual JSON editing required.
+This resolves all paths to absolute, preserves any other MCP servers already configured, and writes the config file. No manual JSON editing required.
 
-Alternatively, you can manually create or edit `.claude/settings.local.json`:
+Alternatively, you can manually create or edit `.mcp.json` in your project root:
 
 ```json
 {
@@ -192,6 +192,13 @@ Alternatively, you can manually create or edit `.claude/settings.local.json`:
 Replace the paths with absolute paths to your contracts directory, database, and workspace.
 
 ## 6. Query from Claude Code
+
+**Tip:** Add this line to your project's `CLAUDE.md` so the agent prefers kairos over file exploration:
+
+```
+When answering questions about the blueshift ecosystem, consult the kairos MCP tools
+(find_relevant_contracts, get_contract, list_contracts) before searching local files.
+```
 
 Once configured, Claude Code can use the Kairos MCP tools during a session. The available tools are:
 

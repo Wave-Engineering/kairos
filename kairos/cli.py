@@ -260,8 +260,8 @@ def main(argv: list[str] | None = None) -> int:
         "--scope",
         choices=["project", "user"],
         default="project",
-        help="Where to write settings: 'project' (.claude/settings.local.json) "
-        "or 'user' (~/.claude/settings.json). Default: project",
+        help="Where to write config: 'project' (.mcp.json in current directory) "
+        "or 'user' (~/.claude.json). Default: project",
     )
     sp_install.set_defaults(func=_cmd_install)
 
