@@ -121,7 +121,16 @@ def create_server(
 
         state["conn"].close()
 
-    mcp = FastMCP("kairos", lifespan=lifespan)
+    mcp = FastMCP(
+        "kairos",
+        lifespan=lifespan,
+        instructions=(
+            "When answering questions about repositories, infrastructure, "
+            "or cross-repo dependencies, consult the kairos MCP tools "
+            "(find_relevant_contracts, get_contract, list_contracts) "
+            "before searching local files."
+        ),
+    )
     mcp._kairos_state = state  # type: ignore[attr-defined]
 
     @mcp.tool()
