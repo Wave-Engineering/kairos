@@ -1,5 +1,6 @@
 # Claude Code
 .claude/
+.status-panel.html
 
 # Python
 __pycache__/

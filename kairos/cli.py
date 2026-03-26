@@ -8,6 +8,7 @@ from pathlib import Path
 
 from kairos.aggregate import aggregate_contracts
 from kairos.embed import embed_contracts
+from kairos.install import install_mcp_config
 from kairos.staleness import check_all_staleness
 
 
@@ -102,6 +103,40 @@ def _cmd_embed(args: argparse.Namespace) -> int:
 
     total_chunks, total_contracts = embed_contracts(contracts_dir, db_path)
     print(f"Embedded {total_chunks} chunks across {total_contracts} contracts into {db_path}")
+
+    # Breadcrumb: suggest next steps with resolved absolute paths.
+    print()
+    print("Next steps:")
+    print()
+    print("  Start the MCP server:")
+    print(f"    kairos serve --contracts-dir {contracts_dir} --db {db_path}")
+    print()
+    print("  Or install into Claude Code settings:")
+    print(f"    kairos install --contracts-dir {contracts_dir} --db {db_path}")
+    return 0
+
+
+def _cmd_install(args: argparse.Namespace) -> int:
+    """Run the install sub-command."""
+    contracts_dir = Path(args.contracts_dir).resolve()
+    db_path = Path(args.db).resolve()
+
+    if not contracts_dir.is_dir():
+        print(f"Error: contracts directory not found: {contracts_dir}", file=sys.stderr)
+        return 1
+
+    try:
+        settings_file = install_mcp_config(contracts_dir, db_path, scope=args.scope)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Kairos MCP server configured in {settings_file}")
+    print()
+    print("  Contracts: " + str(contracts_dir))
+    print("  Database:  " + str(db_path))
+    print()
+    print("Restart Claude Code to activate the new MCP server.")
     return 0
 
 
@@ -205,6 +240,30 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to the root workspace containing git repositories (enables staleness checks)",
     )
     sp_serve.set_defaults(func=_cmd_serve)
+
+    # -- install --
+    sp_install = subparsers.add_parser(
+        "install",
+        help="Add Kairos MCP server to Claude Code settings",
+    )
+    sp_install.add_argument(
+        "--contracts-dir",
+        required=True,
+        help="Path to the directory containing contract YAML files",
+    )
+    sp_install.add_argument(
+        "--db",
+        required=True,
+        help="Path to the sqlite-vec database file",
+    )
+    sp_install.add_argument(
+        "--scope",
+        choices=["project", "user"],
+        default="project",
+        help="Where to write settings: 'project' (.claude/settings.local.json) "
+        "or 'user' (~/.claude/settings.json). Default: project",
+    )
+    sp_install.set_defaults(func=_cmd_install)
 
     args = parser.parse_args(argv)
 
