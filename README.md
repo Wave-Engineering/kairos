@@ -23,7 +23,7 @@ Kairos implements the **D2W chain** (Data to Wisdom) for AI agent context:
 
 ## How It Works
 
-**1. Write contracts** — structured YAML files describing what each repo provides, consumes, and what will bite you:
+**1. Write contracts** — structured YAML files describing what each repo provides, consumes, and what will bite you (see the [Contract Authoring Guide](docs/contracts-guide.md) for how to write effective contracts):
 
 ```yaml
 identity:
