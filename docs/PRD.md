@@ -1,3 +1,5 @@
+> **Historical Document.** This PRD guided the implementation of Waves 1-6. For the current architecture as-built, see [architecture.md](architecture.md).
+
 # Kairos — Product Requirements Document
 
 > *Kairos* (Greek: καιρός) — the opportune moment. The right knowledge, applied at the right time.
