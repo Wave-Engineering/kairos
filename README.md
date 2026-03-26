@@ -137,7 +137,7 @@ See the full [Configuration Reference](docs/configuration.md) for all CLI flags,
 
 ## Status
 
-**Alpha.** Core functionality is implemented: contract schema, chunker, embedder, MCP server with semantic search, staleness detection, and aggregation. See [docs/PRD.md](docs/PRD.md) for the full product requirements document.
+**Alpha.** Core functionality is implemented: contract schema, chunker, embedder, MCP server with semantic search, staleness detection, and aggregation. See [docs/architecture.md](docs/architecture.md) for the technical internals reference and [docs/PRD.md](docs/PRD.md) for the historical product requirements document.
 
 ## License
 
